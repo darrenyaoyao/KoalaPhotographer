@@ -7,12 +7,12 @@ Created on Tue Oct 24 20:03:56 2017
 """
 
 import math
+from operator import itemgetter
 from util import dataloader
 
 """
 Okapi_BM25:https://en.wikipedia.org/wiki/Okapi_BM25
 """
-
 class BM25():
     def __init__(self, database):
         self.documentsTotal = len(database)
@@ -24,7 +24,7 @@ class BM25():
         self.K1 = 1.2
         self.B = 0.8
         self.init()
-        
+
     def init(self):
         for entity,abstract in self.database.items():
             self.termFrequency[entity] = {}
@@ -43,7 +43,7 @@ class BM25():
                 abstractLength = len(self.database[entity])
                 score += (self.inverseDocumentFrequency[word]*self.termFrequency[entity][word]*(self.K1+1)/(self.termFrequency[entity][word]+self.K1*(1-self.B+self.B*abstractLength/self.averageDocumentLength)))
         return score
-        
+
 def main(inputDatabaseFileName, inputQueryFileName):
     load = dataloader.init(inputDatabaseFileName, inputQueryFileName)
     queries = load.getQueries()
@@ -51,16 +51,22 @@ def main(inputDatabaseFileName, inputQueryFileName):
     bm25 = BM25(database)
     with open("result.txt", "w") as outputFile:
         for queryKey, queryContent in queries.items():
-            similities = {}
+            similities = []
             for entity in database:
                 simility = bm25.simility(queryContent, entity)
                 if simility > 0:
-                    similities[entity] = simility
+                    similities.append((entity, simility))
             if len(similities)>0:
-                maxSimility = max(similities.values())
-                for entity in similities:
-                    relevence = similities[entity]/maxSimility*2
-                    outputFile.write("%s Q0\t<dbpedia:%s>\t%f\n" % (queryKey, entity, relevence))
+                maxSimility = max(similities,key=itemgetter(1))[1]
+                similities = sorted(similities, key=itemgetter(1))
+                similitiesLength = len(similities)
+                index = 0
+                for simility in similities:
+                    relevence = simility[1]/maxSimility*2
+                    entity = simility[0]
+                    rank = similitiesLength-index
+                    outputFile.write("%s Q0\t<dbpedia:%s>\t%d\t%f\tSTANDARD\n" % (queryKey, entity, rank, relevence))
+                    index = index+1
 
 if __name__ == "__main__":
     main(r"DBdoc.json", r"queries-v2.txt")
