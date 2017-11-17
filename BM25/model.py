@@ -29,8 +29,8 @@ class BM25():
         self.termFrequency = {}
         self.documentFrequency = {}
         self.inverseDocumentFrequency = {}
-        self.K1 = 1.2
-        self.B = 0.75
+        self.K1 = 0.8
+        self.B = 0.8
         # initialize all variable
         self.init()
 
