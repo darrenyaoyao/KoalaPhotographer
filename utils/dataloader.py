@@ -9,7 +9,7 @@ import re
 import json
 
 
-class init():
+class DBdocDataloader():
     def __init__(self, inputDatabaseFileName, inputQueryFileName):
         self.queries = {}
         self.database = {}
@@ -23,13 +23,14 @@ class init():
             self.rawDatabase = json.load(databaseFile)
             for dataLine in self.rawDatabase:
                 dataAbstract = dataLine["abstract"].split() if isinstance(dataLine["abstract"],str) else []
-                self.database[dataLine["entity"]] = dataAbstract
-                
+                if len(dataAbstract) != 0:
+                    self.database[dataLine["entity"]] = dataAbstract
+
     def getDatabase(self):
         return self.database
-    
+
     def getQueries(self):
         return self.queries
-    
+
     def getRawDatabase(self):
         return self.rawDatabase
