@@ -1,71 +1,46 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Tue Oct 24 20:03:56 2017
 
 @author: Yao
 """
-
-import math
 from operator import itemgetter
-from util import dataloader
-
-"""
-Okapi_BM25:https://en.wikipedia.org/wiki/Okapi_BM25
-"""
-class BM25():
-    def __init__(self, database):
-        self.documentsTotal = len(database)
-        self.averageDocumentLength = float(sum([len(abstract) for _,abstract in database.items()])/self.documentsTotal)
-        self.database = database
-        self.termFrequency = {}
-        self.inverseDocumentFrequency = {}
-        self.documentFrequency = {}
-        self.K1 = 1.2
-        self.B = 0.8
-        self.init()
-
-    def init(self):
-        for entity,abstract in self.database.items():
-            self.termFrequency[entity] = {}
-            for word in abstract:
-                self.termFrequency[entity][word] = self.termFrequency[entity].get(word, 0)+1
-            for word in self.termFrequency[entity]:
-                self.documentFrequency[word] = self.documentFrequency.get(word, 0)+1
-        for word, documentFrequency in self.documentFrequency.items():
-            inverseDocumentFrequency = math.log(self.documentsTotal-documentFrequency+0.5)-math.log(documentFrequency+0.5)
-            self.inverseDocumentFrequency[word] = inverseDocumentFrequency
-
-    def simility(self, query, entity):
-        score = 0.0
-        for word in query:
-            if word in self.termFrequency[entity]:
-                abstractLength = len(self.database[entity])
-                score += (self.inverseDocumentFrequency[word]*self.termFrequency[entity][word]*(self.K1+1)/(self.termFrequency[entity][word]+self.K1*(1-self.B+self.B*abstractLength/self.averageDocumentLength)))
-        return score
+from utils.dataloader import DBdocDataloader
+from BM25.model import BM25
 
 def main(inputDatabaseFileName, inputQueryFileName):
-    load = dataloader.init(inputDatabaseFileName, inputQueryFileName)
+    # parse data in queries-v2.txt and DBdoc.json
+    load = DBdocDataloader(inputDatabaseFileName, inputQueryFileName)
     queries = load.getQueries()
     database = load.getDatabase()
+    # initailize BM25 environment
     bm25 = BM25(database)
-    with open("result.txt", "w") as outputFile:
+    with open("result.txt", "w", encoding='UTF-8') as outputFile:
         for queryKey, queryContent in queries.items():
             similities = []
             for entity in database:
+                # get simility score of each query and document
                 simility = bm25.simility(queryContent, entity)
+                # if score > 0 save it otherwise drop it
                 if simility > 0:
                     similities.append((entity, simility))
-            if len(similities)>0:
-                maxSimility = max(similities,key=itemgetter(1))[1]
+            if len(similities) > 0:
+                # max score in current query round
+                maxSimility = max(similities, key=itemgetter(1))[1]
+                # sort all score in current query round
                 similities = sorted(similities, key=itemgetter(1))
+                # num of all scores
                 similitiesLength = len(similities)
                 index = 0
                 for simility in similities:
+                    # normalize all score to 0~2
                     relevence = simility[1]/maxSimility*2
+                    # document entity name
                     entity = simility[0]
+                    # document rank
                     rank = similitiesLength-index
-                    outputFile.write("%s Q0\t<dbpedia:%s>\t%d\t%f\tSTANDARD\n" % (queryKey, entity, rank, relevence))
+                    # write into "result.txt"
+                    outputFile.write("%s\tQ0\t<dbpedia:%s>\t%d\t%f\tSTANDARD\n" % (queryKey, entity, rank, relevence))
                     index = index+1
 
 if __name__ == "__main__":
